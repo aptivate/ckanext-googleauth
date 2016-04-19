@@ -32,8 +32,6 @@ import ckan.lib.helpers as helpers
 import requests
 import re
 
-
-
 #get 'ckan.googleauth_clientid' from ini file
 def get_clientid():
     return config.get('ckan.googleauth_clientid', '')
@@ -42,6 +40,19 @@ def get_clientid():
 #get ckan.googleauth_hosted_domain from ini file
 def get_hosted_domain():
     return config.get('ckan.googleauth_hosted_domain', '')
+
+
+def omit_domain():
+    return toolkit.asbool(
+        config.get('ckan.googleauth_omit_domain_from_username',
+                   False))
+
+
+def email_to_ckan_user(email):
+    if omit_domain():
+        email = email.rsplit('@', 2)[0]
+
+    return re.sub('[^A-Za-z0-9]+', '_', email)
 
 
 class GoogleAuthException(Exception):
@@ -141,7 +152,7 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
 		except GoogleAuthException, e:
 			toolkit.abort(500)
 
-		user_account = re.sub('[^A-Za-z0-9]+','_',mail_verified)
+		user_account = email_to_ckan_user(mail_verified)
 
 		user_ckan = self.get_ckanuser(user_account)
 
