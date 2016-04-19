@@ -7,7 +7,7 @@ This extension allow users to authenticate in CKAN using their google account. O
 At the first access, the extension create a new user in CKAN with strong and complex password and username calculated from email address, substituting every non alphanumerical character with underscore "_".
 For example: 'name.surname@domain.it' -> 'name_surname_domain_it'.
 
-If ``ckan.googleauth_omit_domain_from_username`` is set (see [Config Settings](##Config Settings)) the domain will be stripped from the username.
+If ``ckan.googleauth_omit_domain_from_username`` is set (see [Config Settings](#Config Settings)) the domain will be stripped from the username.
 For example: 'name.surname@domain.it' -> 'name_surname'.
 
 
