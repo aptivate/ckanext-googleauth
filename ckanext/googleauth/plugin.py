@@ -181,6 +181,8 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
                                'name': user_account,
                                'password': self.get_ckanpasswd()})
 
+            log.info('Setting google user to %s' % user_ckan['name'])
+
             pylons.session['ckanext-google-user'] = user_ckan['name']
             pylons.session['ckanext-google-email'] = mail_verified
 
@@ -195,7 +197,10 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
         log.info('identify')
         user_ckan = pylons.session.get('ckanext-google-user')
         if user_ckan:
+            log.info('ckan user: %s' % user_ckan)
             toolkit.c.user = user_ckan
+        else:
+            log.info('ckan user not in session')
 
 
 
