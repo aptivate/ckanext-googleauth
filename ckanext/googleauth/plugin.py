@@ -32,10 +32,6 @@ import ckan.lib.helpers as helpers
 import requests
 import re
 
-import logging
-log = logging.getLogger(__name__)
-
-
 
 #get 'ckan.googleauth_clientid' from ini file
 def get_clientid():
@@ -54,8 +50,6 @@ def omit_domain():
 
 
 def email_to_ckan_user(email):
-    log.info('email_to_ckan_user:%s' % email)
-
     if omit_domain():
         email = email.rsplit('@', 2)[0]
 
@@ -89,20 +83,16 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
     #verify email address within token
     def verify_email(self, token):
-        log.info('verifying email')
         res = requests.post('https://www.googleapis.com/oauth2/v3/tokeninfo?id_token='+token, verify=True)
 
         if res.ok:
-            log.info('ok')
             is_email_verified=json.loads(res.content)
             if is_email_verified['email_verified'] == 'true':
                 email_verified = is_email_verified['email']
                 return email_verified
             else:
-                log.info('exception:is_email_verified')
                 raise GoogleAuthException(is_email_verified)
         else:
-            log.info('exception:not ok')
             raise GoogleAuthException(res)
 
 
@@ -133,7 +123,6 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
 
     def _logout_user(self):
-        log.info('_logout_user')
         #import pylons
 
 	#to revoke the Google token uncomment the code below
@@ -159,20 +148,14 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
     	params = toolkit.request.params
 
 	if 'id_token' in params:
-            log.info('login id_token=%s' % params['id_token'])
-
             try:
                 mail_verified = self.verify_email(params['id_token'])
             except GoogleAuthException, e:
-                log.info('aborting')
                 toolkit.abort(500)
 
 
             user_account = email_to_ckan_user(mail_verified)
-            log.info('user account:%s' % user_account)
             user_ckan = self.get_ckanuser(user_account)
-
-            log.info('ckan user:%s' % user_ckan)
 
             if not user_ckan:
                 user_ckan = toolkit.get_action('user_create')(
@@ -180,8 +163,6 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
                     data_dict={'email': mail_verified,
                                'name': user_account,
                                'password': self.get_ckanpasswd()})
-
-            log.info('Setting google user to %s' % user_ckan['name'])
 
             pylons.session['ckanext-google-user'] = user_ckan['name']
             pylons.session['ckanext-google-email'] = mail_verified
@@ -194,24 +175,18 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
     #if someone is logged in will be set the parameter c.user
     def identify(self):
-        log.info('identify')
         user_ckan = pylons.session.get('ckanext-google-user')
         if user_ckan:
-            log.info('ckan user: %s' % user_ckan)
             toolkit.c.user = user_ckan
-        else:
-            log.info('ckan user not in session')
 
 
 
     def logout(self):
-        log.info('logout')
         self._logout_user()
 
 
 
     def abort(self, status_code=None, detail='', headers=None, comment=None):
-        log.info('abort')
         self._logout_user()
 
         return (status_code, detail, headers, comment)
