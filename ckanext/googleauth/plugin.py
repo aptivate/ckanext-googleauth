@@ -208,3 +208,5 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
     def abort(self, status_code=None, detail='', headers=None, comment=None):
         log.info('abort')
         self._logout_user()
+
+        return (status_code, detail, headers, comment)
