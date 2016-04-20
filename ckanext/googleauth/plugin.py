@@ -32,6 +32,11 @@ import ckan.lib.helpers as helpers
 import requests
 import re
 
+import logging
+log = logging.getLogger(__name__)
+
+
+
 #get 'ckan.googleauth_clientid' from ini file
 def get_clientid():
     return config.get('ckan.googleauth_clientid', '')
@@ -49,6 +54,8 @@ def omit_domain():
 
 
 def email_to_ckan_user(email):
+    log.info('email_to_ckan_user:%s' % email)
+
     if omit_domain():
         email = email.rsplit('@', 2)[0]
 
@@ -76,63 +83,68 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
     #declare new helper functions
     def get_helpers(self):
         return {'googleauth_get_clientid': get_clientid,
-		'googleauth_get_hosted_domain': get_hosted_domain}
+                'googleauth_get_hosted_domain': get_hosted_domain}
 
 
 
     #verify email address within token
     def verify_email(self, token):
+        log.info('verifying email')
         res = requests.post('https://www.googleapis.com/oauth2/v3/tokeninfo?id_token='+token, verify=True)
 
         if res.ok:
-                is_email_verified=json.loads(res.content)
-                if is_email_verified['email_verified'] == 'true':
-                        email_verified = is_email_verified['email']
-                        return email_verified
-                else:
-                        raise GoogleAuthException(is_email_verified)
+            log.info('ok')
+            is_email_verified=json.loads(res.content)
+            if is_email_verified['email_verified'] == 'true':
+                email_verified = is_email_verified['email']
+                return email_verified
+            else:
+                log.info('exception:is_email_verified')
+                raise GoogleAuthException(is_email_verified)
         else:
-                raise GoogleAuthException(res)
+            log.info('exception:not ok')
+            raise GoogleAuthException(res)
 
 
 
     #if exist returns ckan user
     def get_ckanuser(self, user):
-    	import ckan.model
+        import ckan.model
 
 	user_ckan = ckan.model.User.by_name(user)
 
 	if user_ckan:
-		user_dict = toolkit.get_action('user_show')(data_dict={'id': user_ckan.id})
-		return user_dict
-	else:
-		return None
+            user_dict = toolkit.get_action('user_show')(data_dict={'id': user_ckan.id})
+            return user_dict
+        else:
+            return None
 
 
 
     #generates a strong password
     def get_ckanpasswd(self):
-	import datetime
-	import random
+        import datetime
+        import random
 
 	passwd = str(random.random())+ datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")+str(uuid.uuid4().hex)
-	passwd = re.sub(r"\s+", "", passwd, flags=re.UNICODE)
-	return passwd
+        passwd = re.sub(r"\s+", "", passwd, flags=re.UNICODE)
+        return passwd
 
 
 
     def _logout_user(self):
+        log.info('_logout_user')
         #import pylons
 
 	#to revoke the Google token uncomment the code below
 
 	#if 'ckanext-google-accesstoken' in pylons.session:
-	#    atoken = pylons.session.get('ckanext-google-accesstoken')
-	#    res = requests.get('https://accounts.google.com/o/oauth2/revoke?token='+atoken)
-	#    if res.status_code == 200:
-	#    	del pylons.session['ckanext-google-accesstoken']
-	#    else:
-	#	raise GoogleAuthException('Token not revoked')
+        #    atoken = pylons.session.get('ckanext-google-accesstoken')
+        #    res = requests.get('https://accounts.google.com/o/oauth2/revoke?token='+atoken)
+        #    if res.status_code == 200:
+        #    	del pylons.session['ckanext-google-accesstoken']
+        #    else:
+        #	raise GoogleAuthException('Token not revoked')
         if 'ckanext-google-user' in pylons.session:
             del pylons.session['ckanext-google-user']
         if 'ckanext-google-email' in pylons.session:
@@ -147,43 +159,52 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
     	params = toolkit.request.params
 
 	if 'id_token' in params:
-		try:
-			mail_verified = self.verify_email(params['id_token'])
-		except GoogleAuthException, e:
-			toolkit.abort(500)
+            log.info('login id_token=%s' % params['id_token'])
 
-		user_account = email_to_ckan_user(mail_verified)
+            try:
+                mail_verified = self.verify_email(params['id_token'])
+            except GoogleAuthException, e:
+                log.info('aborting')
+                toolkit.abort(500)
 
-		user_ckan = self.get_ckanuser(user_account)
 
-		if not user_ckan:
-			user_ckan = toolkit.get_action('user_create')(
-                    				context={'ignore_auth': True},
-                    				data_dict={'email': mail_verified,
-                               			'name': user_account,
-                               			'password': self.get_ckanpasswd()})
+            user_account = email_to_ckan_user(mail_verified)
+            log.info('user account:%s' % user_account)
+            user_ckan = self.get_ckanuser(user_account)
 
-		pylons.session['ckanext-google-user'] = user_ckan['name']
-        	pylons.session['ckanext-google-email'] = mail_verified
+            log.info('ckan user:%s' % user_ckan)
 
-		#to revoke the Google token uncomment the code below
-		#pylons.session['ckanext-google-accesstoken'] = params['token']
-            	pylons.session.save()
+            if not user_ckan:
+                user_ckan = toolkit.get_action('user_create')(
+                    context={'ignore_auth': True},
+                    data_dict={'email': mail_verified,
+                               'name': user_account,
+                               'password': self.get_ckanpasswd()})
+
+            pylons.session['ckanext-google-user'] = user_ckan['name']
+            pylons.session['ckanext-google-email'] = mail_verified
+
+            #to revoke the Google token uncomment the code below
+            #pylons.session['ckanext-google-accesstoken'] = params['token']
+            pylons.session.save()
 
 
 
     #if someone is logged in will be set the parameter c.user
     def identify(self):
-	user_ckan = pylons.session.get('ckanext-google-user')
+        log.info('identify')
+        user_ckan = pylons.session.get('ckanext-google-user')
         if user_ckan:
             toolkit.c.user = user_ckan
 
 
 
     def logout(self):
-	self._logout_user()
+        log.info('logout')
+        self._logout_user()
 
 
 
     def abort(self):
-	self._logout_user()
+        log.info('abort')
+        self._logout_user()
