@@ -153,7 +153,6 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
             except GoogleAuthException, e:
                 toolkit.abort(500)
 
-
             user_account = email_to_ckan_user(mail_verified)
             user_ckan = self.get_ckanuser(user_account)
 
@@ -183,8 +182,11 @@ class GoogleauthPlugin(plugins.SingletonPlugin, DefaultTranslation):
 
     def logout(self):
         self._logout_user()
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> master
 
     def abort(self, status_code=None, detail='', headers=None, comment=None):
         self._logout_user()

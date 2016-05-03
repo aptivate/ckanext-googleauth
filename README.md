@@ -44,7 +44,7 @@ In your config file (``/etc/ckan/default/production.ini``) add these properties:
 
 * ``ckan.googleauth_hosted_domain = hosted_domain_value`` (OPTIONAL) It contains the domain authorized to authenticate. If it isn't set you will have access with any Google Account Credentials.
 
-* ``ckan.googleauth_omit_domain_from_username = true | false`` (OPTIONAL). Strip the domain when creating the username.
+* ``ckan.googleauth_omit_domain_from_username = true | false`` (OPTIONAL). Strip the domain when creating the username. Only use this option if all users are logging in with the same domain.
 
 ##Development Installation
 
